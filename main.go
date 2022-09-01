@@ -3,20 +3,28 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 func main() {
-	ctxParent, cancelParent := context.WithCancel(context.Background())
-	defer cancelParent()
+	ctxMain := context.Background()
 
-	ctxChild, cancelChild := context.WithCancel(ctxParent)
-	defer cancelChild()
+	go func() {
+		ctxTimeout, cancelTimeout := context.WithTimeout(ctxMain, 5*time.Second)
+		defer cancelTimeout()
+		<-ctxTimeout.Done()
+		fmt.Println("timeout!")
+	}()
 
-	// 親contextの中断は子contextにも伝播する
-	cancelParent()
-	// 子contextの中断は親contextには伝播しない
-	// cancelChild()
+	go func() {
+		ctxDeadline, cancelDeadline := context.WithDeadline(ctxMain, time.Now().Add(3*time.Second))
+		defer cancelDeadline()
+		<-ctxDeadline.Done()
+		fmt.Println("deadline!")
+	}()
 
-	fmt.Printf("parent.Err is %v\n", ctxParent.Err())
-	fmt.Printf("child.Err is %v\n", ctxChild.Err())
+	for i := 0; i < 10; i++ {
+		fmt.Printf("%d sec...\n", i)
+		time.Sleep(1 * time.Second)
+	}
 }
