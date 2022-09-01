@@ -17,8 +17,7 @@ L:
 		select {
 		case <-ctx.Done():
 			break L
-		default:
-			time.Sleep(1 * time.Second)
+		case <-time.After(1 * time.Second):
 		}
 	}
 }
