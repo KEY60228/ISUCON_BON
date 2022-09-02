@@ -3,32 +3,26 @@ package main
 import (
 	"fmt"
 	"sync"
-	"time"
 )
 
 func main() {
+	userIDs := make([]int, 0)
+	userIDsLock := &sync.Mutex{}
+
 	wg := &sync.WaitGroup{}
 
-	wg.Add(2)
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
 
-	go func() {
-		defer wg.Done()
-
-		for i := 0; i < 3; i++ {
-			fmt.Printf("wg 1: %d / 3\n", i+1)
-			time.Sleep(1 * time.Second)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-
-		for i := 0; i < 5; i++ {
-			fmt.Printf("wg 2: %d / 5\n", i+1)
-			time.Sleep(1 * time.Second)
-		}
-	}()
+			userIDsLock.Lock()
+			userIDs = append(userIDs, id)
+			userIDsLock.Unlock()
+		}(i)
+	}
 
 	wg.Wait()
-	fmt.Println("wg: done")
+
+	fmt.Printf("userIDs: %v\n", userIDs)
 }
