@@ -1,54 +1,34 @@
 package main
 
 import (
-	"context"
 	"fmt"
+	"sync"
 	"time"
 )
 
 func main() {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	wg := &sync.WaitGroup{}
 
-	go LoopWithBefore(ctx)
-	go LoopWithAfter(ctx)
+	wg.Add(2)
 
-	<-ctx.Done()
-}
+	go func() {
+		defer wg.Done()
 
-func LoopWithBefore(ctx context.Context) {
-	beforeLoop := time.Now()
-	for {
-		loopTimer := time.After(3 * time.Second)
-
-		HeavyProcess(ctx, "BEFORE")
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-loopTimer:
-			fmt.Printf("[Before] loop duration: %.2fs\n", time.Now().Sub(beforeLoop).Seconds())
-			beforeLoop = time.Now()
+		for i := 0; i < 3; i++ {
+			fmt.Printf("wg 1: %d / 3\n", i+1)
+			time.Sleep(1 * time.Second)
 		}
-	}
-}
+	}()
 
-func LoopWithAfter(ctx context.Context) {
-	beforeLoop := time.Now()
-	for {
-		HeavyProcess(ctx, "AFTER")
+	go func() {
+		defer wg.Done()
 
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(3 * time.Second):
-			fmt.Printf("[AFTER] loop duration: %.2fs\n", time.Now().Sub(beforeLoop).Seconds())
-			beforeLoop = time.Now()
+		for i := 0; i < 5; i++ {
+			fmt.Printf("wg 2: %d / 5\n", i+1)
+			time.Sleep(1 * time.Second)
 		}
-	}
-}
+	}()
 
-func HeavyProcess(ctx context.Context, pattern string) {
-	fmt.Printf("[%s] Heavy Process\n", pattern)
-	time.Sleep(1*time.Second + 500*time.Millisecond)
+	wg.Wait()
+	fmt.Println("wg: done")
 }
