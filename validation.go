@@ -10,7 +10,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/isucon/isucandar"
@@ -136,6 +138,42 @@ func WithCSRFToken(user *User) ResponseValidator {
 		}
 
 		return nil
+	}
+}
+
+func WithOrderedPosts() ResponseValidator {
+	return func(r *http.Response) error {
+		defer r.Body.Close()
+
+		doc, err := goquery.NewDocumentFromReader(r.Body)
+		if err != nil {
+			return failure.NewError(ErrInvalidResposne, fmt.Errorf("%s %s : %s", r.Request.Method, r.Request.URL.Path, err.Error()))
+		}
+
+		errs := []error{}
+
+		previousCreatedAt := time.Now()
+		doc.Find(".isu-posts .isu-post").Each(func(_ int, s *goquery.Selection) {
+			post := s.First()
+			idAttr, exists := post.Attr("id")
+			if !exists {
+				return
+			}
+			createdAtAttr, exists := post.Attr("data-created-at")
+			if !exists {
+				return
+			}
+
+			id, _ := strconv.Atoi(strings.TrimPrefix(idAttr, "pid_"))
+			createdAt, _ := time.Parse(time.RFC3339, createdAtAttr)
+
+			if createdAt.After(previousCreatedAt) {
+				errs = append(errs, failure.NewError(ErrInvalidPostOrder, fmt.Errorf("%s %s : invalid order in top page: %s", r.Request.Method, r.Request.URL.Path, createdAt)))
+				AdminLogger.Printf("isu-post: %d: %s", id, createdAt)
+			}
+		})
+
+		return ValidationError{Errors: errs}
 	}
 }
 

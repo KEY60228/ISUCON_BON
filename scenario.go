@@ -314,3 +314,29 @@ func (s *Scenario) PostImage(ctx context.Context, step *isucandar.BenchmarkStep,
 
 	return true
 }
+
+func (s *Scenario) OrderedIndex(ctx context.Context, step *isucandar.BenchmarkStep, user *User) bool {
+	ag, err := user.GetAgent(s.Option)
+	if err != nil {
+		step.AddError(failure.NewError(ErrCannotNewAgent, err))
+		return false
+	}
+
+	getRes, err := GetRootAction(ctx, ag)
+	if err != nil {
+		step.AddError(failure.NewError(ErrInvalidRequest, err))
+		return false
+	}
+	defer getRes.Body.Close()
+
+	getValidation := ValidateResponse(getRes, WithStatusCode(200), WithOrderedPosts())
+	getValidation.Add(step)
+
+	if getValidation.IsEmpty() {
+		step.AddScore(ScoreGETRoot)
+	} else {
+		return false
+	}
+
+	return true
+}
