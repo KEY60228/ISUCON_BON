@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"os"
 	"time"
+
+	"github.com/isucon/isucandar"
 )
 
 var (
@@ -29,4 +32,25 @@ func main() {
 	flag.Parse()
 
 	AdminLogger.Print(option)
+
+	scenario := &Scenario{Option: option}
+	benchmark, err := isucandar.NewBenchmark(
+		isucandar.WithoutPanicRecover(),
+		isucandar.WithLoadTimeout(1*time.Minute),
+	)
+	if err != nil {
+		AdminLogger.Fatal(err)
+	}
+
+	benchmark.AddScenario(scenario)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	result := benchmark.Start(ctx)
+
+	for _, err := range result.Errors.All() {
+		ContestantLogger.Printf("%v", err)
+		AdminLogger.Printf("%+v", err)
+	}
 }

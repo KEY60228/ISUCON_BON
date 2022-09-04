@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/failure"
 )
 
@@ -44,6 +45,18 @@ func (v ValidationError) IsEmpty() bool {
 		}
 	}
 	return true
+}
+
+func (v ValidationError) Add(step *isucandar.BenchmarkStep) {
+	for _, err := range v.Errors {
+		if err != nil {
+			if ve, ok := err.(ValidationError); ok {
+				ve.Add(step)
+			} else {
+				step.AddError(err)
+			}
+		}
+	}
 }
 
 type ResponseValidator func(*http.Response) error
