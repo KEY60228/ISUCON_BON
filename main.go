@@ -53,4 +53,29 @@ func main() {
 		ContestantLogger.Printf("%v", err)
 		AdminLogger.Printf("%+v", err)
 	}
+
+	score := SumScore(result)
+	ContestantLogger.Printf("score: %d", score)
+
+	if option.ExitErrorOnFail && score <= 0 {
+		os.Exit(1)
+	}
+}
+
+func SumScore(result *isucandar.BenchmarkResult) int64 {
+	score := result.Score
+	score.Set(ScoreGETRoot, 1)
+	score.Set(ScoreGETLogin, 1)
+	score.Set(ScorePOSTLogin, 2)
+	score.Set(ScorePOSTRoot, 5)
+
+	addition := score.Sum()
+	deduction := len(result.Errors.All())
+
+	sum := addition - int64(deduction)
+	if sum < 0 {
+		sum = 0
+	}
+
+	return sum
 }
