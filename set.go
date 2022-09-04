@@ -19,6 +19,12 @@ type Set[T Model] struct {
 	dict map[int]T
 }
 
+func (s *Set[T]) Len() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.list)
+}
+
 func (s *Set[T]) At(index int) T {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

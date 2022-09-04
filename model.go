@@ -21,6 +21,24 @@ type User struct {
 	Agent     *agent.Agent
 }
 
+type UserSet struct {
+	Set[*User]
+}
+
+func (m *User) GetID() int {
+	if m == nil {
+		return 0
+	}
+	return m.ID
+}
+
+func (m *User) GetCreatedAt() time.Time {
+	if m == nil {
+		return time.Unix(0, 0)
+	}
+	return m.CreatedAt
+}
+
 func (m *User) GetAgent(o Option) (*agent.Agent, error) {
 	m.mu.RLock()
 	a := m.Agent
@@ -40,6 +58,12 @@ func (m *User) GetAgent(o Option) (*agent.Agent, error) {
 	m.Agent = a
 
 	return a, nil
+}
+
+func (m *User) ClearAgent() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Agent = nil
 }
 
 func (m *User) SetCSRFToken(token string) {
@@ -64,10 +88,46 @@ type Post struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+func (m *Post) GetID() int {
+	if m == nil {
+		return 0
+	}
+	return m.ID
+}
+
+func (m *Post) GetCreatedAt() time.Time {
+	if m == nil {
+		return time.Unix(0, 0)
+	}
+	return m.CreatedAt
+}
+
+type PostSet struct {
+	Set[*Post]
+}
+
 type Comment struct {
 	ID        int       `json:"id"`
 	Comment   string    `json:"comment"`
 	CreatedAt time.Time `json:"created_at"`
 	PostID    int       `json:"post_id"`
 	UserID    int       `json:"user_id"`
+}
+
+func (m *Comment) GetID() int {
+	if m == nil {
+		return 0
+	}
+	return m.ID
+}
+
+func (m *Comment) GetCreatedAt() time.Time {
+	if m == nil {
+		return time.Unix(0, 0)
+	}
+	return m.CreatedAt
+}
+
+type CommentSet struct {
+	Set[*Comment]
 }
