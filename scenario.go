@@ -121,3 +121,50 @@ func (s *Scenario) Load(ctx context.Context, step *isucandar.BenchmarkStep) erro
 	wg.Wait()
 	return nil
 }
+
+func (s *Scenario) LoginSuccess(ctx context.Context, step *isucandar.BenchmarkStep, user *User) bool {
+	ag, err := user.GetAgent(s.Option)
+	if err != nil {
+		step.AddError(failure.NewError(ErrCannotNewAgent, err))
+		return false
+	}
+
+	getRes, err := GetLoginAction(ctx, ag)
+	if err != nil {
+		step.AddError(failure.NewError(ErrInvalidRequest, err))
+		return false
+	}
+	defer getRes.Body.Close()
+
+	getValidation := ValidateResponse(getRes, WithStatusCode(200), WithAssets(ctx, ag))
+	getValidation.Add(step)
+
+	if getValidation.IsEmpty() {
+		step.AddScore(ScoreGETLogin)
+	} else {
+		return false
+	}
+
+	select {
+	case <-ctx.Done():
+		return false
+	default:
+	}
+
+	postRes, err := PostLoginAction(ctx, ag, user.AccountName, user.Password)
+	if err != nil {
+		step.AddError(failure.NewError(ErrInvalidRequest, err))
+		return false
+	}
+	defer postRes.Body.Close()
+
+	postValidation := ValidateResponse(postRes, WithStatusCode(302), WithLocation("/"))
+
+	if postValidation.IsEmpty() {
+		step.AddScore(ScorePOSTLogin)
+	} else {
+		return false
+	}
+
+	return true
+}
