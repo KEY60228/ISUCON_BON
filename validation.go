@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/isucon/isucandar"
 	"github.com/isucon/isucandar/agent"
 	"github.com/isucon/isucandar/failure"
@@ -102,6 +103,36 @@ func WithIncludeBody(val string) ResponseValidator {
 
 		if bytes.IndexAny(body, val) == -1 {
 			return failure.NewError(ErrNotFound, fmt.Errorf("%s %s : %s is not found in body", r.Request.Method, r.Request.URL.Path, val))
+		}
+
+		return nil
+	}
+}
+
+func WithCSRFToken(user *User) ResponseValidator {
+	return func(r *http.Response) error {
+		defer r.Body.Close()
+
+		user.SetCSRFToken("")
+
+		doc, err := goquery.NewDocumentFromReader(r.Body)
+		if err != nil {
+			return failure.NewError(ErrInvalidResposne, fmt.Errorf("%s %s : %s", r.Request.Method, r.Request.URL.Path, err.Error()))
+		}
+
+		node := doc.Find(`input[name="csrf_token"]`).Get(0)
+		if node == nil {
+			return failure.NewError(ErrCSRFToken, fmt.Errorf("%s %s : CSRF token is not found", r.Request.Method, r.Request.URL.Path))
+		}
+
+		for _, attr := range node.Attr {
+			if attr.Key == "value" {
+				user.SetCSRFToken(attr.Val)
+			}
+		}
+
+		if user.GetCSRFToken() == "" {
+			return failure.NewError(ErrCSRFToken, fmt.Errorf("%s %s : CSRF token is not found", r.Request.Method, r.Request.URL.Path))
 		}
 
 		return nil

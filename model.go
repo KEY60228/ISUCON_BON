@@ -17,7 +17,8 @@ type User struct {
 	DeleteFlag  int       `json:"del_flg"`
 	CreatedAt   time.Time `json:"created_at"`
 
-	Agent *agent.Agent
+	csrfToken string
+	Agent     *agent.Agent
 }
 
 func (m *User) GetAgent(o Option) (*agent.Agent, error) {
@@ -39,6 +40,19 @@ func (m *User) GetAgent(o Option) (*agent.Agent, error) {
 	m.Agent = a
 
 	return a, nil
+}
+
+func (m *User) SetCSRFToken(token string) {
+	m.mu.Lock()
+	m.csrfToken = token
+	m.mu.Unlock()
+}
+
+func (m *User) GetCSRFToken() string {
+	m.mu.RLock()
+	token := m.csrfToken
+	m.mu.RUnlock()
+	return token
 }
 
 type Post struct {

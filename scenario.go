@@ -239,3 +239,78 @@ func (s *Scenario) LoginFailure(ctx context.Context, step *isucandar.BenchmarkSt
 
 	return true
 }
+
+func (s *Scenario) PostImage(ctx context.Context, step *isucandar.BenchmarkStep, user *User) bool {
+	ag, err := user.GetAgent(s.Option)
+	if err != nil {
+		step.AddError(failure.NewError(ErrCannotNewAgent, err))
+		return false
+	}
+
+	getRes, err := GetRootAction(ctx, ag)
+	if err != nil {
+		step.AddError(failure.NewError(ErrInvalidRequest, err))
+		return false
+	}
+	defer getRes.Body.Close()
+
+	getValidation := ValidateResponse(getRes, WithStatusCode(200), WithCSRFToken(user))
+	getValidation.Add(step)
+
+	if getValidation.IsEmpty() {
+		step.AddScore(ScoreGETRoot)
+	} else {
+		return false
+	}
+
+	select {
+	case <-ctx.Done():
+		return false
+	default:
+	}
+
+	post := &Post{
+		Mime:   "image/png",
+		Body:   randomText(),
+		UserID: user.ID,
+	}
+	postRes, err := PostRootAction(ctx, ag, post, user.GetCSRFToken())
+	if err != nil {
+		step.AddError(failure.NewError(ErrInvalidRequest, err))
+		return false
+	}
+	defer postRes.Body.Close()
+
+	postValidation := ValidateResponse(postRes, WithStatusCode(302))
+	postValidation.Add(step)
+
+	if postValidation.IsEmpty() {
+		step.AddScore(ScorePOSTRoot)
+	} else {
+		return false
+	}
+
+	select {
+	case <-ctx.Done():
+		return false
+	default:
+	}
+
+	redirectRes, err := GetRootAction(ctx, ag)
+	if err != nil {
+		step.AddError(failure.NewError(ErrInvalidRequest, err))
+		return false
+	}
+	defer getRes.Body.Close()
+
+	redirectValidation := ValidateResponse(redirectRes, WithStatusCode(200), WithAssets(ctx, ag))
+	redirectValidation.Add(step)
+
+	if redirectValidation.IsEmpty() {
+		step.AddScore(ScoreGETRoot)
+	} else {
+		return false
+	}
+
+	return true
+}
