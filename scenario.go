@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	ErrFailedLoadJSON failure.StringCode = "load-json"
-	ErrCannotNewAgent failure.StringCode = "agent"
-	ErrInvalidRequest failure.StringCode = "request"
+	ErrFailedLoadJSON  failure.StringCode = "load-json"
+	ErrCannotNewAgent  failure.StringCode = "agent"
+	ErrInvalidRequest  failure.StringCode = "request"
+	ErrInvalidResposne failure.StringCode = "response"
 )
 
 const (
@@ -162,6 +163,76 @@ func (s *Scenario) LoginSuccess(ctx context.Context, step *isucandar.BenchmarkSt
 
 	if postValidation.IsEmpty() {
 		step.AddScore(ScorePOSTLogin)
+	} else {
+		return false
+	}
+
+	return true
+}
+
+func (s *Scenario) LoginFailure(ctx context.Context, step *isucandar.BenchmarkStep, user *User) bool {
+	ag, err := user.GetAgent(s.Option)
+	if err != nil {
+		step.AddError(failure.NewError(ErrCannotNewAgent, err))
+		return false
+	}
+
+	getRes, err := GetLoginAction(ctx, ag)
+	if err != nil {
+		step.AddError(failure.NewError(ErrInvalidRequest, err))
+		return false
+	}
+	defer getRes.Body.Close()
+
+	getValidation := ValidateResponse(getRes, WithStatusCode(200), WithAssets(ctx, ag))
+	getValidation.Add(step)
+
+	if getValidation.IsEmpty() {
+		step.AddScore(ScoreGETLogin)
+	} else {
+		return false
+	}
+
+	select {
+	case <-ctx.Done():
+		return false
+	default:
+	}
+
+	postRes, err := PostLoginAction(ctx, ag, user.AccountName, user.Password+".invalid")
+	if err != nil {
+		step.AddError(failure.NewError(ErrInvalidRequest, err))
+		return false
+	}
+	defer postRes.Body.Close()
+
+	postValidation := ValidateResponse(postRes, WithStatusCode(302), WithLocation("/login"))
+	postValidation.Add(step)
+
+	if postValidation.IsEmpty() {
+		step.AddScore(ScorePOSTLogin)
+	} else {
+		return false
+	}
+
+	select {
+	case <-ctx.Done():
+		return false
+	default:
+	}
+
+	redirectRes, err := GetLoginAction(ctx, ag)
+	if err != nil {
+		step.AddError(failure.NewError(ErrInvalidRequest, err))
+		return false
+	}
+	defer getRes.Body.Close()
+
+	redirectValidation := ValidateResponse(redirectRes, WithStatusCode(200), WithIncludeBody("アカウント名かパスワードが間違っています"))
+	redirectValidation.Add(step)
+
+	if redirectValidation.IsEmpty() {
+		step.AddScore(ScoreGETLogin)
 	} else {
 		return false
 	}

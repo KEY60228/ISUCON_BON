@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -85,6 +87,23 @@ func WithStatusCode(statusCode int) ResponseValidator {
 				fmt.Errorf("%s %s : expected(%d) != actual(%d)", r.Request.Method, r.Request.URL.Path, statusCode, r.StatusCode),
 			)
 		}
+		return nil
+	}
+}
+
+func WithIncludeBody(val string) ResponseValidator {
+	return func(r *http.Response) error {
+		defer r.Body.Close()
+
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return failure.NewError(ErrInvalidResposne, fmt.Errorf("%s %s : %s", r.Request.Method, r.Request.URL.Path, err.Error()))
+		}
+
+		if bytes.IndexAny(body, val) == -1 {
+			return failure.NewError(ErrNotFound, fmt.Errorf("%s %s : %s is not found in body", r.Request.Method, r.Request.URL.Path, val))
+		}
+
 		return nil
 	}
 }
